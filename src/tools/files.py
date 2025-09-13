@@ -171,7 +171,3 @@ def list_files(dir_path: str):
         }
     
 
-# For tests
-# if __name__ == "__main__":
-    # print(search_file(dir_path="/Users/thiago.piva/Documents/studies/mcp-file-utils/real_test", case_sensitive=False, search_by="content", search_term="thiago", file_extension="txt"))
-    # print(list_files(dir_path="/Users/thiago.piva/Documents/studies/mcp-file-utils/main.py"))
