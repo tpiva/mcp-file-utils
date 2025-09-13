@@ -1,17 +1,14 @@
 import re
 import mimetypes
-from typing import Optional
+from typing import Dict, List, Union
+from pydantic import ValidationError
 from server import mcp
 from pathlib import Path
 from constants import errors
+from tools.schemas import ListFileSchema, SearchFileSchema
 
 @mcp.tool()
-def search_file(dir_path: str, 
-    search_term: str,
-    search_by: str = "name",
-    case_sensitive: bool = False,
-    recursive: bool = True,
-    file_extension: Optional[str] = None) -> str:
+def search_file(**kwargs) -> Dict[str, Union[bool, str, List[Dict[str, Union[str, int]]]]]:
     """
     Searches for files in a directory by filename or content.
 
@@ -50,51 +47,24 @@ def search_file(dir_path: str,
         ValueError: If search_by parameter has invalid value.
 
     """
-    if search_by not in ["name", "content"]:
-        return {
-            "success": False,
-            "message": "search_by must be 'name' or 'content'",
-            "code": "INVALID_SEARCH_TYPE"
-        }
-    
     try:
-
-        if not file_extension == "txt":
-            return {
-                "success": False,
-                "message": f"File extension not allowed. Extension {file_extension}",
-                "code": errors.FILE_EXTENSION_ERROR
-            }
-
-        directory_path = Path(dir_path)
-        if not directory_path.exists():
-            return {
-                "success": False,
-                "message": "Directory does not exist",
-                "code": errors.DIR_NOT_EXISTS_ERROR
-            }
-        
-        if not directory_path.is_dir():
-            return {
-                "success": False,
-                "message": "Path is not a directory",
-                "code":  errors.NOT_A_DIRECTORY_ERROR
-            }
-            
-    except (TypeError, ValueError) as e:
+        params = SearchFileSchema(**kwargs)
+    except ValidationError as e:
         return {
             "success": False,
-            "message": f"Invalid directory path: {str(e)}",
-            "code": errors.PATH_FORMAT_ERROR
+            "message": f"Invalid parameters: {e}",
+            "code": errors.VALIDATION_ERROR,
+            "errors": e.errors()
         }
     
     matches = []
     search_pattern = re.compile(
-        re.escape(search_term), 
-        0 if case_sensitive else re.IGNORECASE
+        re.escape(params.search_term), 
+        0 if params.case_sensitive else re.IGNORECASE
     )
 
-    search_method = directory_path.rglob("*") if recursive else directory_path.iterdir()
+    directory_path = Path(params.dir_path)
+    search_method = directory_path.rglob("*") if params.recursive else directory_path.iterdir()
 
     for file_path in search_method:
         if not file_path.is_file():
@@ -107,14 +77,14 @@ def search_file(dir_path: str,
                 "matched_line": None
             }
     
-        if search_by == "name":
+        if params.search_by == "name":
             if search_pattern.search(file_path.name):
                 matches.append({
                     **file_match,
                     "match_type": "name"
                 })
             
-        if search_by == "content":
+        if params.search_by == "content":
             try:
                 mime_type, _ = mimetypes.guess_type(str(file_path))
                 if mime_type and not mime_type.startswith('text'):
@@ -140,7 +110,7 @@ def search_file(dir_path: str,
 
         return {
                 "success": True,
-                "message": f"Search by {search_by} found total #{len(matches)} results",
+                "message": f"Search by {params.search_by} found total #{len(matches)} results",
                 "data": matches
             }
 
@@ -169,15 +139,20 @@ def list_files(dir_path: str):
     Raises:
         Does not raise exceptions directly, but returns errors in the dictionary.
     """
+
     try:
-        if not Path(dir_path).is_dir():
-            return {
-                "success": False,
-                "message": "This is not a valid dir path.",
-                "code":  errors.NOT_A_DIRECTORY_ERROR,
-            }
-    
-        directory_path = Path(dir_path)
+        params = ListFileSchema(dir_path=dir_path)
+    except ValidationError as e:
+        return {
+            "success": False,
+            "message": f"Invalid parameters: {e}",
+            "code": errors.VALIDATION_ERROR,
+            "errors": e.errors()
+        }
+
+    try:
+        
+        directory_path = Path(params.dir_path)
         file_paths = []
         for entry in directory_path.iterdir():
             if entry.is_file():
@@ -196,6 +171,7 @@ def list_files(dir_path: str):
         }
     
 
-
-if __name__ == "__main__":
-    print(search_file(dir_path="/Users/thiago.piva/Documents/studies/mcp-file-utils/real_test", case_sensitive=False, search_by="content", search_term="thiago", file_extension="txt"))
+# For tests
+# if __name__ == "__main__":
+    # print(search_file(dir_path="/Users/thiago.piva/Documents/studies/mcp-file-utils/real_test", case_sensitive=False, search_by="content", search_term="thiago", file_extension="txt"))
+    # print(list_files(dir_path="/Users/thiago.piva/Documents/studies/mcp-file-utils/main.py"))

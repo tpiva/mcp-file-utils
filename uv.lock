@@ -252,6 +252,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "mcp", extra = ["cli"] },
+    { name = "pydantic" },
 ]
 
 [package.optional-dependencies]
@@ -268,6 +269,7 @@ requires-dist = [
     { name = "flake8", marker = "extra == 'dev'" },
     { name = "mcp", extras = ["cli"], specifier = ">=1.13.1" },
     { name = "mcp", extras = ["cli"], marker = "extra == 'dev'" },
+    { name = "pydantic", specifier = ">=2.11.7" },
     { name = "pytest", marker = "extra == 'dev'" },
 ]
 provides-extras = ["dev"]
