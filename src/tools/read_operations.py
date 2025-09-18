@@ -1,13 +1,14 @@
 import re
 import mimetypes
+from datetime import datetime
 from typing import Dict, List, Union
 from pydantic import ValidationError
 from server import mcp
 from pathlib import Path
 from constants import errors
-from tools.schemas import ListFileSchema, SearchFileSchema
+from tools.schemas import DirectoryPathParams, FilePathParams, SearchFileParams
 
-@mcp.tool()
+# @mcp.tool()
 def search_file(**kwargs) -> Dict[str, Union[bool, str, List[Dict[str, Union[str, int]]]]]:
     """
     Searches for files in a directory by filename or content.
@@ -48,7 +49,7 @@ def search_file(**kwargs) -> Dict[str, Union[bool, str, List[Dict[str, Union[str
 
     """
     try:
-        params = SearchFileSchema(**kwargs)
+        params = SearchFileParams(**kwargs)
     except ValidationError as e:
         return {
             "success": False,
@@ -114,7 +115,7 @@ def search_file(**kwargs) -> Dict[str, Union[bool, str, List[Dict[str, Union[str
                 "data": matches
             }
 
-@mcp.tool()
+# @mcp.tool()
 def list_files(dir_path: str):
     """
     Lists all files in a specified directory.
@@ -141,7 +142,7 @@ def list_files(dir_path: str):
     """
 
     try:
-        params = ListFileSchema(dir_path=dir_path)
+        params = DirectoryPathParams(dir_path=dir_path)
     except ValidationError as e:
         return {
             "success": False,
@@ -170,4 +171,108 @@ def list_files(dir_path: str):
             "code":  errors.PATH_FORMAT_ERROR,
         }
     
+# @mcp.tool()
+def read_file_content(file_path: str):
+    """
+    Read file content based on a path.
 
+    Args:
+        file_path (str): Path to the file to be read.
+
+    Returns:
+        Dict[str, Union[bool, str, List[str]]]: Dictionary containing:
+            - On success:
+                * success (bool): True
+                * data (List[str]): File Content
+            - On error:
+                * success (bool): False
+                * message (str): Error description
+                * code (str): Specific error code
+
+    Raises:
+        Does not raise exceptions directly, but returns errors in the dictionary.
+    """
+    try:
+        params = FilePathParams(file_path=file_path)
+    except ValidationError as e:
+        return {
+            "success": False,
+            "message": f"Invalid parameters: {e}",
+            "code": errors.VALIDATION_ERROR,
+            "errors": e.errors()
+        }
+    
+    data = None
+    try:
+        file_correct_path = Path(params.file_path)
+        with open(file_correct_path, 'r', encoding='utf-8', errors='ignore') as file:
+            data = file.read()
+    except (PermissionError, UnicodeDecodeError, OSError):
+        return {
+            "success": False,
+            "message": f"Invalid parameters: {e}",
+            "code": errors.READ_FILE_ERROR,
+            "errors": e.errors()
+        }
+
+    return {
+            "success": True,
+            "message": f"Success ready file content and returned in data!",
+            "data": data
+        }
+
+def read_file_attributes(file_path: str):
+    """
+    Read file statistics by a given path.
+
+    Args:
+        file_path (str): Path to the file to be read.
+
+    Returns:
+        Dict[str, Union[bool, str, List[str]]]: Dictionary containing:
+            - On success:
+                * success (bool): True
+                * data (Dict): File statistics
+            - On error:
+                * success (bool): False
+                * message (str): Error description
+                * code (str): Specific error code
+
+    Raises:
+        Does not raise exceptions directly, but returns errors in the dictionary.
+    """
+    try:
+        params = FilePathParams(file_path=file_path)
+    except ValidationError as e:
+        return {
+            "success": False,
+            "message": f"Invalid parameters: {e}",
+            "code": errors.VALIDATION_ERROR,
+            "errors": e.errors()
+        }
+    
+    file = Path(params.file_path)
+    statistics = file.stat()
+
+    return {
+            "success": True,
+            "message": f"Success ready file content and returned in data!",
+            "data": {
+                "nome": file.name,
+                "size_bytes": statistics.st_size,
+                "size_mb": round(statistics.st_size / (1024*1024), 2),
+                "date_updated": datetime.fromtimestamp(statistics.st_mtime),
+                "access": datetime.fromtimestamp(statistics.st_atime),
+                "date_created": datetime.fromtimestamp(statistics.st_ctime),
+                "is_file": file.is_file(),
+                "is_directory": file.is_dir(),
+                "permissions": oct(statistics.st_mode)[-3:]
+            }
+        }
+    
+    
+if __name__ == "__main__":
+    # data = read_file_attributes("/Users/thiago.piva/Documents/studies/mcp-file-utils/real_test/first_test.txt")
+    # data = search_file(dir_path="/Users/thiago.piva/Documents/studies/mcp-file-utils/real_te", search_term="test")
+    # print(data)
+    pass
