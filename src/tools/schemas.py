@@ -1,6 +1,6 @@
 import os
 from typing import Any, Union
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 from pathlib import Path
 
 
@@ -30,6 +30,11 @@ def validate_file_path(cls, v: str) -> str:
             raise ValueError(f'Path is not a file: {v}')
         return v
 
+def validate_txt_file(v: str) -> str:
+    if ".txt" not in v:
+        raise ValueError('file_name MUST be a txt file')
+    return v
+
 class DirectoryPathParams(BaseModel):
     dir_path: str
     
@@ -39,7 +44,6 @@ class FilePathParams(BaseModel):
     file_path: str
 
     _validate_file_path = field_validator('file_path')(validate_file_path)
-    
 
 class SearchFileParams(DirectoryPathParams):
     search_term: str
@@ -73,8 +77,15 @@ class SearchFileParams(DirectoryPathParams):
 
 class WriteFileParams(DirectoryPathParams):
     file_name: str
+    file_content: str = Field(min_length=10, max_length=200)
+    append_content: bool
 
-    @field_validator('file_name')
-    @classmethod
-    def validate_file_name(cls, v):
-        if name incluse
+    _validate_file_name = field_validator('file_name')(validate_txt_file)
+    
+class CreateNewFolderParams(DirectoryPathParams):
+    folder_name: str = Field(min_length=3)
+
+class RenameFileParams(FilePathParams):
+    new_file_name: str
+
+    _validate_new_file_name = field_validator('new_file_name')(validate_txt_file)
